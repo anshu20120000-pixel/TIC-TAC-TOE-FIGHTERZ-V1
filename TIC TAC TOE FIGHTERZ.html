@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>TIC TAC TOE FIGHTERZ</title>
+
+<style>
+
+body{
+background:radial-gradient(circle,#050505,#000);
+color:white;
+font-family:Arial;
+text-align:center;
+margin:0;
+}
+
+.title{
+font-size:45px;
+color:#00ffff;
+text-shadow:0 0 20px #00ffff;
+margin-top:35px;
+}
+
+.settings{
+position:fixed;
+left:25px;
+top:20%;
+width:220px;
+background:rgba(15,15,15,0.95);
+padding:18px;
+border:1px solid #00ffff;
+box-shadow:0 0 25px #00ffff;
+}
+
+.settings.locked input{
+pointer-events:none;
+opacity:.4;
+}
+
+.restartBtn{
+width:100%;
+padding:8px;
+margin-top:10px;
+background:#000;
+border:1px solid #ff0066;
+color:#ff0066;
+cursor:pointer;
+font-weight:bold;
+}
+
+.line{
+height:1px;
+background:#00ffff;
+margin:12px 0;
+}
+
+input[type=range]{width:100%;}
+
+.labels{
+display:flex;
+justify-content:space-between;
+font-size:11px;
+}
+
+input[type=text]{
+width:95%;
+padding:6px;
+margin-top:5px;
+background:#000;
+border:1px solid #00ffff;
+color:white;
+}
+
+.history{
+position:fixed;
+right:20px;
+top:20%;
+width:240px;
+height:430px;
+overflow-y:auto;
+background:#0b0b0b;
+border:1px solid #00ffff;
+box-shadow:0 0 20px #00ffff;
+padding:10px;
+text-align:left;
+}
+
+.history h3{
+text-align:center;
+color:#00ffff;
+}
+
+.move{
+font-size:14px;
+margin:4px 0;
+}
+
+.board{
+margin:70px auto;
+display:grid;
+gap:10px;
+justify-content:center;
+}
+
+.cell{
+background:#080808;
+border:2px solid #00ffff;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:38px;
+cursor:pointer;
+box-shadow:0 0 12px #00ffff;
+transition:.2s;
+}
+
+.cell:hover{
+transform:scale(1.08);
+box-shadow:0 0 30px #00ffff;
+}
+
+.cell.pop{
+animation:pop .25s ease;
+}
+
+@keyframes pop{
+0%{transform:scale(.5)}
+100%{transform:scale(1)}
+}
+
+.x{
+color:#ff00ff;
+text-shadow:0 0 15px #ff00ff;
+}
+
+.o{
+color:#00ff88;
+text-shadow:0 0 15px #00ff88;
+}
+
+#status{
+margin-top:20px;
+font-size:22px;
+}
+
+.overlay{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,.9);
+display:none;
+align-items:center;
+justify-content:center;
+}
+
+.popup{
+background:#0b0b0b;
+padding:30px;
+border:1px solid #00ffff;
+box-shadow:0 0 30px #00ffff;
+}
+
+button{
+margin-top:15px;
+padding:10px 20px;
+background:#0b0b0b;
+border:1px solid #00ffff;
+color:#00ffff;
+cursor:pointer;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="title">TIC TAC TOE FIGHTERZ</div>
+
+<div id="settings" class="settings">
+
+<h3>Mode</h3>
+<input type="range" id="modeSlider" min="0" max="1" value="0" onchange="updateNames()">
+<div class="labels"><span>Offline</span><span>AI</span></div>
+
+<button class="restartBtn" onclick="restart()">RESTART</button>
+
+<div class="line"></div>
+
+<h3>Start Player</h3>
+<input type="range" id="startSlider" min="0" max="1" value="0">
+<div class="labels"><span>X</span><span>O</span></div>
+
+<div class="line"></div>
+
+<h3>Player Names</h3>
+<input id="p1" type="text" value="PLAYER 1">
+<input id="p2" type="text" value="PLAYER 2">
+
+<div class="line"></div>
+
+<h3>AI Level</h3>
+<input type="range" id="aiSlider" min="0" max="3" value="1">
+<div class="labels"><span>Noob</span><span>Pro</span><span>Hard</span><span>Legend</span></div>
+
+<div class="line"></div>
+
+<h3>Grid</h3>
+<input type="range" id="gridSlider" min="0" max="3" value="0" onchange="changeGrid()">
+<div class="labels"><span>3×3</span><span>4×4</span><span>5×5</span><span>9×9</span></div>
+
+</div>
+
+<div class="history">
+<h3>MOVES</h3>
+<div id="moves"></div>
+</div>
+
+<div id="board" class="board"></div>
+
+<h2 id="status"></h2>
+
+<div id="gameOver" class="overlay">
+<div class="popup">
+<h2 id="winnerText"></h2>
+<button onclick="restart()">Play Again</button>
+</div>
+</div>
+
+<div id="tipPopup" class="overlay">
+<div class="popup">
+<h2 id="tipText"></h2>
+<button onclick="closeTip()">OK</button>
+</div>
+</div>
+
+<script>
+
+let gridSize=3;
+let board=[];
+let currentPlayer="X";
+let gameOver=false;
+let gameStarted=false;
+let moveCount=1;
+
+let playerSymbol="X";
+let aiSymbol="O";
+
+function updateNames(){
+    let mode=document.getElementById("modeSlider").value;
+    let p2=document.getElementById("p2");
+    if(mode==1){
+        p2.value="AI";
+        p2.disabled=true;
+    } else {
+        p2.value="PLAYER 2";
+        p2.disabled=false;
+    }
+}
+
+function buildBoard(){
+    let boardDiv=document.getElementById("board");
+    boardDiv.innerHTML="";
+    let cellSize=80;
+    if(gridSize==5) cellSize=65;
+    if(gridSize==9) cellSize=45;
+    boardDiv.style.gridTemplateColumns="repeat("+gridSize+","+cellSize+"px)";
+    for(let i=0;i<gridSize*gridSize;i++){
+        let cell=document.createElement("div");
+        cell.className="cell";
+        cell.style.width=cellSize+"px";
+        cell.style.height=cellSize+"px";
+        cell.onclick=function(){play(i)};
+        boardDiv.appendChild(cell);
+    }
+    board=new Array(gridSize*gridSize).fill("");
+}
+
+function changeGrid(){
+    let v=document.getElementById("gridSlider").value;
+    if(v==0)gridSize=3;
+    if(v==1)gridSize=4;
+    if(v==2)gridSize=5;
+    if(v==3)gridSize=9;
+    buildBoard();
+    restart();
+}
+
+function play(index){
+    if(board[index]!=""||gameOver) return;
+    if(!gameStarted){
+        gameStarted=true;
+        document.getElementById("settings").classList.add("locked");
+        let start=document.getElementById("startSlider").value;
+        currentPlayer=start==0?"X":"O";
+        if(isAI()){
+            playerSymbol=currentPlayer;
+            aiSymbol=currentPlayer=="X"?"O":"X";
+            if(currentPlayer==aiSymbol) setTimeout(aiMove,300);
+        }
+    }
+
+    board[index]=currentPlayer;
+    let cell=document.getElementsByClassName("cell")[index];
+    cell.innerHTML=currentPlayer;
+    cell.classList.add(currentPlayer=="X"?"x":"o");
+    cell.classList.add("pop");
+    addMove(index);
+
+    if(checkWinner()){
+        showGameOver(currentPlayer+" Wins");
+        return;
+    }
+    if(!board.includes("")){
+        showGameOver("Draw");
+        return;
+    }
+
+    // Show tip if human player
+    if(!isAI() || currentPlayer==playerSymbol){
+        let tip=getTip(currentPlayer);
+        if(tip) showTip(tip);
+    }
+
+    currentPlayer=currentPlayer=="X"?"O":"X";
+    updateStatus();
+    if(isAI() && currentPlayer==aiSymbol){
+        setTimeout(aiMove,300);
+    }
+}
+
+// AI Logic
+function aiMove(){
+    let empty=board.map((v,i)=>v==""?i:null).filter(v=>v!=null);
+    let level=parseInt(document.getElementById("aiSlider").value);
+
+    if(level==0){
+        play(empty[Math.floor(Math.random()*empty.length)]);
+        return;
+    }
+
+    // Try win
+    let move=findMove(aiSymbol);
+    if(move!=-1){play(move); return;}
+
+    // Try block
+    move=findMove(playerSymbol);
+    if(move!=-1){play(move); return;}
+
+    // Center
+    let center=Math.floor(board.length/2);
+    if(level>=2 && board[center]==""){
+        play(center); return;
+    }
+
+    // Legend AI
+    if(level==3){
+        if(gridSize==3){
+            let bestScore=-Infinity, bestMove=null;
+            for(let i of empty){
+                board[i]=aiSymbol;
+                let score=minimax(false);
+                board[i]="";
+                if(score>bestScore){bestScore=score; bestMove=i;}
+            }
+            play(bestMove); return;
+        } else {
+            // Heuristic: win/block, corners, edges, random
+            let priorities=[];
+            for(let i of empty){
+                board[i]=aiSymbol;
+                if(findMove(aiSymbol)!=-1){board[i]=""; play(i); return;}
+                board[i]=playerSymbol;
+                if(findMove(playerSymbol)!=-1){board[i]=""; play(i); return;}
+                board[i]="";
+                priorities.push(i);
+            }
+            // Prefer corners and center if available
+            let preferred=priorities.filter(i=>{
+                let r=Math.floor(i/gridSize);
+                let c=i%gridSize;
+                return (r==0||r==gridSize-1)&&(c==0||c==gridSize-1) || i==Math.floor(board.length/2);
+            });
+            if(preferred.length>0){
+                play(preferred[Math.floor(Math.random()*preferred.length)]);
+                return;
+            }
+        }
+    }
+
+    play(empty[Math.floor(Math.random()*empty.length)]);
+}
+
+// Helper to find winning/block move
+function findMove(symbol){
+    let empty=board.map((v,i)=>v==""?i:null).filter(v=>v!=null);
+    for(let i of empty){
+        board[i]=symbol;
+        if(checkWinnerSymbol(symbol)){board[i]=""; return i;}
+        board[i]="";
+    }
+    return -1;
+}
+
+// Tip helper
+function getTip(symbol){
+    let move=findMove(symbol=="X"? "O":"X");
+    if(move!=-1){
+        let r=Math.floor(move/gridSize)+1, c=move%gridSize+1;
+        return "Watch out! Opponent can win at ("+r+","+c+")";
+    }
+    return "";
+}
+
+function addMove(index){
+    let size=gridSize;
+    let r=Math.floor(index/size)+1;
+    let c=index%size+1;
+    let name=currentPlayer=="X"?document.getElementById("p1").value:document.getElementById("p2").value;
+    let text=moveCount+". "+name+" → ("+r+","+c+")";
+    let div=document.createElement("div");
+    div.className="move";
+    div.innerText=text;
+    document.getElementById("moves").appendChild(div);
+    moveCount++;
+}
+
+function isAI(){return document.getElementById("modeSlider").value==1;}
+
+function checkWinner(){
+    return checkWinnerSymbol(currentPlayer);
+}
+
+function checkWinnerSymbol(symbol){
+    let size=gridSize;
+    let win=size<=4?size:5;
+    // rows
+    for(let r=0;r<size;r++){
+        for(let c=0;c<=size-win;c++){
+            let ok=true;
+            for(let k=0;k<win;k++){if(board[r*size+c+k]!=symbol){ok=false;break;}}
+            if(ok) return true;
+        }
+    }
+    // columns
+    for(let c=0;c<size;c++){
+        for(let r=0;r<=size-win;r++){
+            let ok=true;
+            for(let k=0;k<win;k++){if(board[(r+k)*size+c]!=symbol){ok=false;break;}}
+            if(ok) return true;
+        }
+    }
+    // diagonals \
+    for(let r=0;r<=size-win;r++){
+        for(let c=0;c<=size-win;c++){
+            let ok=true;
+            for(let k=0;k<win;k++){if(board[(r+k)*size+(c+k)]!=symbol){ok=false;break;}}
+            if(ok) return true;
+        }
+    }
+    // diagonals /
+    for(let r=0;r<=size-win;r++){
+        for(let c=win-1;c<size;c++){
+            let ok=true;
+            for(let k=0;k<win;k++){if(board[(r+k)*size+(c-k)]!=symbol){ok=false;break;}}
+            if(ok) return true;
+        }
+    }
+    return false;
+}
+
+function minimax(isMaximizing){
+    if(checkWinnerSymbol(aiSymbol)) return 10;
+    if(checkWinnerSymbol(playerSymbol)) return -10;
+    if(!board.includes("")) return 0;
+    let empty=board.map((v,i)=>v==""?i:null).filter(v=>v!=null);
+    if(isMaximizing){
+        let best=-Infinity;
+        for(let i of empty){
+            board[i]=aiSymbol;
+            let score=minimax(false);
+            board[i]="";
+            best=Math.max(score,best);
+        }
+        return best;
+    } else {
+        let best=Infinity;
+        for(let i of empty){
+            board[i]=playerSymbol;
+            let score=minimax(true);
+            board[i]="";
+            best=Math.min(score,best);
+        }
+        return best;
+    }
+}
+
+function showGameOver(text){
+    gameOver=true;
+    document.getElementById("winnerText").innerText=text;
+    document.getElementById("gameOver").style.display="flex";
+}
+
+function updateStatus(){
+    let name=currentPlayer=="X"?document.getElementById("p1").value:document.getElementById("p2").value;
+    document.getElementById("status").innerText=name+" ("+currentPlayer+") Turn";
+}
+
+function restart(){
+    board=new Array(gridSize*gridSize).fill("");
+    gameOver=false;
+    moveCount=1;
+    gameStarted=false;
+    document.getElementById("settings").classList.remove("locked");
+    document.getElementById("moves").innerHTML="";
+    let start=document.getElementById("startSlider").value;
+    currentPlayer=start==0?"X":"O";
+    let cells=document.getElementsByClassName("cell");
+    for(let c of cells){c.innerHTML=""; c.classList.remove("x","o");}
+    document.getElementById("gameOver").style.display="none";
+    updateStatus();
+    if(isAI()){
+        playerSymbol=currentPlayer;
+        aiSymbol=currentPlayer=="X"?"O":"X";
+        if(currentPlayer==aiSymbol) setTimeout(aiMove,300);
+    }
+}
+
+function showTip(text){
+    document.getElementById("tipText").innerText=text;
+    document.getElementById("tipPopup").style.display="flex";
+}
+function closeTip(){document.getElementById("tipPopup").style.display="none";}
+
+buildBoard();
+updateNames();
+restart();
+
+</script>
+
+</body>
+</html>
